@@ -27,7 +27,13 @@ module Searchkick
           results = {}
 
           hits.group_by { |hit, _| hit["_type"] }.each do |type, grouped_hits|
-            results[type] = results_query(type.camelize.constantize, grouped_hits).to_a.index_by { |r| r.id.to_s }
+            result_type =
+              begin
+                type.camelize.constantize
+              rescue NameError
+                klass
+              end
+            results[type] = results_query(result_type, grouped_hits).to_a.index_by { |r| r.id.to_s }
           end
 
           # sort
