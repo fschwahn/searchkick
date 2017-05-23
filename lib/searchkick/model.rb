@@ -5,7 +5,8 @@ module Searchkick
         :filterable, :geo_shape, :highlight, :ignore_above, :index_name, :index_prefix, :language,
         :locations, :mappings, :match, :merge_mappings, :routing, :searchable, :settings, :similarity,
         :special_characters, :stem_conversions, :suggest, :synonyms, :text_end,
-        :text_middle, :text_start, :word, :wordnet, :word_end, :word_middle, :word_start]
+        :text_middle, :text_start, :word, :wordnet, :word_end, :word_middle, :word_start,
+        :server_url]
       raise ArgumentError, "unknown keywords: #{unknown_keywords.join(", ")}" if unknown_keywords.any?
 
       raise "Only call searchkick once per model" if respond_to?(:searchkick_index)
@@ -33,9 +34,15 @@ module Searchkick
           def searchkick_index
             index = class_variable_get :@@searchkick_index
             index = index.call if index.respond_to? :call
-            Searchkick::Index.new(index, searchkick_options)
+            Searchkick::Index.new(index, searchkick_options.merge(client: searchkick_client))
           end
           alias_method :search_index, :searchkick_index unless method_defined?(:search_index)
+
+          def searchkick_client
+            return class_variable_get :@@searchkick_client if class_variable_defined?(:@@searchkick_client)
+            client = searchkick_options[:server_url] ? Searchkick.build_client(searchkick_options[:server_url]) : Searchkick.client
+            class_variable_set :@@searchkick_client, client
+          end
 
           def enable_search_callbacks
             class_variable_set :@@searchkick_callbacks, true

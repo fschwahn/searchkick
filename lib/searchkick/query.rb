@@ -55,6 +55,10 @@ module Searchkick
       klass ? klass.searchkick_klass : nil
     end
 
+    def searchkick_client
+      klass ? klass.searchkick_client : Searchkick.client
+    end
+
     def params
       index =
         if options[:index_name]
@@ -96,7 +100,7 @@ module Searchkick
       index = query[:index].is_a?(Array) ? query[:index].join(",") : query[:index]
 
       # no easy way to tell which host the client will use
-      host = Searchkick.client.transport.hosts.first
+      host = searchkick_client.transport.hosts.first
       credentials = host[:user] || host[:password] ? "#{host[:user]}:#{host[:password]}@" : nil
       "curl #{host[:protocol]}://#{credentials}#{host[:host]}:#{host[:port]}/#{CGI.escape(index)}#{type ? "/#{type.map { |t| CGI.escape(t) }.join(',')}" : ''}/_search?pretty -d '#{query[:body].to_json}'"
     end
@@ -195,7 +199,7 @@ module Searchkick
     end
 
     def execute_search
-      Searchkick.client.search(params)
+      searchkick_client.search(params)
     end
 
     def prepare
@@ -568,7 +572,7 @@ module Searchkick
       indices_boost = options[:indices_boost].each_with_object({}) do |(key, boost), memo|
         index = key.respond_to?(:searchkick_index) ? key.searchkick_index.name : key
         # try to use index explicitly instead of alias: https://github.com/elasticsearch/elasticsearch/issues/4756
-        index_by_alias = Searchkick.client.indices.get_alias(index: index).keys.first
+        index_by_alias = searchkick_client.indices.get_alias(index: index).keys.first
         memo[index_by_alias || index] = boost
       end
 

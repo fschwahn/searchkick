@@ -48,20 +48,22 @@ module Searchkick
   self.queue_name = :searchkick
 
   def self.client
-    @client ||= begin
-      require "typhoeus/adapters/faraday" if defined?(Typhoeus)
+    @client ||= build_client(ENV["ELASTICSEARCH_URL"])
+  end
 
-      Elasticsearch::Client.new({
-        url: ENV["ELASTICSEARCH_URL"],
-        transport_options: {request: {timeout: timeout}, headers: {content_type: "application/json"}}
-      }.deep_merge(client_options)) do |f|
-        f.use Searchkick::Middleware
-        f.request :aws_signers_v4, {
-          credentials: Aws::Credentials.new(aws_credentials[:access_key_id], aws_credentials[:secret_access_key]),
-          service_name: "es",
-          region: aws_credentials[:region] || "us-east-1"
-        } if aws_credentials
-      end
+  def self.build_client(url)
+    require "typhoeus/adapters/faraday" if defined?(Typhoeus)
+
+    Elasticsearch::Client.new({
+      url: url,
+      transport_options: {request: {timeout: timeout}, headers: {content_type: "application/json"}}
+    }.deep_merge(client_options)) do |f|
+      f.use Searchkick::Middleware
+      f.request :aws_signers_v4, {
+        credentials: Aws::Credentials.new(aws_credentials[:access_key_id], aws_credentials[:secret_access_key]),
+        service_name: "es",
+        region: aws_credentials[:region] || "us-east-1"
+      } if aws_credentials
     end
   end
 
@@ -103,6 +105,10 @@ module Searchkick
 
   def self.multi_search(queries)
     if queries.any?
+      clients = queries.map(&:searchkick_client).uniq
+      raise "Searchkick.multi_search must be run on a single elasticsearch server" if clients.size > 1
+
+      client = clients.first
       responses = client.msearch(body: queries.flat_map { |q| [q.params.except(:body), q.body] })["responses"]
       queries.each_with_index do |query, i|
         query.handle_response(responses[i])

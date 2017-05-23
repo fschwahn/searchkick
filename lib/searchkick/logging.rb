@@ -6,6 +6,7 @@ module Searchkick
     def execute_search
       name = searchkick_klass ? "#{searchkick_klass.name} Search" : "Search"
       event = {
+        klass: searchkick_klass,
         name: name,
         query: params
       }
@@ -166,7 +167,8 @@ module Searchkick
       index = payload[:query][:index].is_a?(Array) ? payload[:query][:index].join(",") : payload[:query][:index]
 
       # no easy way to tell which host the client will use
-      host = Searchkick.client.transport.hosts.first
+      client = payload[:klass] ? payload[:klass].searchkick_client : Searchkick.client
+      host = client.transport.hosts.first
       debug "  #{color(name, YELLOW, true)}  curl #{host[:protocol]}://#{host[:host]}:#{host[:port]}/#{CGI.escape(index)}#{type ? "/#{type.map { |t| CGI.escape(t) }.join(',')}" : ''}/_search?pretty -d '#{payload[:query][:body].to_json}'"
     end
 
@@ -188,7 +190,8 @@ module Searchkick
       name = "#{payload[:name]} (#{event.duration.round(1)}ms)"
 
       # no easy way to tell which host the client will use
-      host = Searchkick.client.transport.hosts.first
+      client = payload[:klass] ? payload[:klass].searchkick_client : Searchkick.client
+      host = client.transport.hosts.first
       debug "  #{color(name, YELLOW, true)}  curl #{host[:protocol]}://#{host[:host]}:#{host[:port]}/_msearch?pretty -d '#{payload[:body]}'"
     end
   end

@@ -306,7 +306,7 @@ module Searchkick
     protected
 
     def client
-      Searchkick.client
+      options[:client] || Searchkick.client
     end
 
     def document_type(record)
